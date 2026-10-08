@@ -1,0 +1,12 @@
+.venv
+.git
+.gitignore
+.github
+.env
+.env.*
+!.env.example
+data/
+staticfiles/
+*.sqlite3
+__pycache__
+*.pyc

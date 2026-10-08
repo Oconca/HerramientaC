@@ -1,0 +1,1727 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OCONCA - Evaluaciones CIMTRA (AdminLTE)</title>
+
+  <!-- Google Font: Source Sans Pro -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Theme style (AdminLTE) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
+  
+  <style>
+    .badge-score {
+      font-size: 1rem;
+      padding: 6px 12px;
+    }
+    .custom-control-label {
+      cursor: pointer;
+    }
+    .criterios-table td, .criterios-table th {
+      vertical-align: middle !important;
+    }
+    .nav-sidebar .nav-link {
+      white-space: normal;
+    }
+    .brand-text-custom {
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+    .opacity-50 {
+      opacity: 0.5;
+    }
+    .toast-saved-banner {
+      position: fixed;
+      top: 70px;
+      right: 20px;
+      z-index: 9999;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+  </style>
+</head>
+<body class="hold-transition sidebar-mini layout-fixed layout-navbar-fixed layout-footer-fixed">
+{% verbatim %}
+<div class="wrapper" id="app">
+
+  <!-- Navbar -->
+  <nav class="main-header navbar navbar-expand navbar-dark navbar-navy">
+    <!-- Left navbar links -->
+    <ul class="navbar-nav">
+      <li class="nav-item">
+        <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
+      </li>
+      <li class="nav-item">
+        <a href="#" class="nav-link" :class="{ 'text-white font-weight-bold active': vistaActual === 'dashboard' && bloqueSeleccionado === null }" @click.prevent="abrirDashboard">
+          <i class="fas fa-home mr-1"></i> Inicio / Dashboard
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="#" class="nav-link" :class="{ 'text-warning font-weight-bold active': vistaActual === 'estadisticas' && bloqueSeleccionado === null, 'text-warning': vistaActual !== 'estadisticas' }" @click.prevent="abrirEstadisticas">
+          <i class="fas fa-chart-pie mr-1"></i> Estadísticas y Reportes
+        </a>
+      </li>
+    </ul>
+
+    <!-- Right navbar links -->
+    <ul class="navbar-nav ml-auto">
+      <template v-if="isLoggedIn">
+        <li class="nav-item mr-2" v-if="entidad && periodo">
+          <button class="btn btn-success btn-sm mt-1 font-weight-bold" @click="guardarAvanceManual" :disabled="isSaving">
+            <i class="fas fa-save mr-1"></i> {{ isSaving ? 'Guardando...' : 'Guardar Avance' }}
+          </button>
+        </li>
+        <li class="nav-item mr-2" v-if="entidad && periodo">
+          <button class="btn btn-outline-light btn-sm mt-1" @click="exportarExcel">
+            <i class="fas fa-file-excel mr-1 text-success"></i> Exportar Excel
+          </button>
+        </li>
+        <li class="nav-item mr-2" v-if="entidad && periodo && tipo === 'Congreso'">
+          <button class="btn btn-outline-light btn-sm mt-1" @click="exportarWord">
+            <i class="fas fa-file-word mr-1 text-info"></i> Exportar Word
+          </button>
+        </li>
+        <li class="nav-item mr-2" v-if="entidad && periodo">
+          <button class="btn btn-outline-warning btn-sm mt-1 text-warning font-weight-bold" @click="exportarObservacionesWord" title="Descargar informe de observaciones en Word">
+            <i class="fas fa-file-alt mr-1"></i> Observaciones (Word)
+          </button>
+        </li>
+        <li class="nav-item mr-2" v-if="esAdmin">
+          <a href="/admin/" target="_blank" class="btn btn-danger btn-sm mt-1 font-weight-bold" title="Abrir Panel de Administración de Django">
+            <i class="fas fa-tools mr-1"></i> Admin Django
+          </a>
+        </li>
+        <li class="nav-item mr-3">
+          <button class="btn btn-warning btn-sm mt-1" data-toggle="modal" data-target="#modalNuevaRevision">
+            <i class="fas fa-plus-circle mr-1"></i> Nueva Evaluación
+          </button>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link" data-toggle="dropdown" href="#">
+            <i class="fas fa-user-circle mr-1"></i>
+            <span class="font-weight-bold">{{ username }}</span>
+            <span v-if="esAdmin" class="badge badge-danger ml-1">ADMIN</span>
+          </a>
+          <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+            <div class="dropdown-header text-center">
+              <strong>{{ username }}</strong>
+              <span v-if="esAdmin" class="d-block text-muted text-xs">Administrador Django</span>
+            </div>
+            <div class="dropdown-divider"></div>
+            <a href="/admin/" target="_blank" class="dropdown-item" v-if="esAdmin">
+              <i class="fas fa-tools mr-2 text-danger"></i> Panel de Administración Django
+            </a>
+            <div class="dropdown-divider" v-if="esAdmin"></div>
+            <a href="#" class="dropdown-item text-danger" @click.prevent="logout">
+              <i class="fas fa-sign-out-alt mr-2"></i> Cerrar Sesión
+            </a>
+          </div>
+        </li>
+      </template>
+      <template v-else>
+        <li class="nav-item">
+          <button class="btn btn-success btn-sm mt-1" data-toggle="modal" data-target="#modalAuth">
+            <i class="fas fa-lock mr-1"></i> Iniciar Sesión / Registrarse
+          </button>
+        </li>
+      </template>
+    </ul>
+  </nav>
+  <!-- /.navbar -->
+
+  <!-- Main Sidebar Container -->
+  <aside class="main-sidebar sidebar-dark-navy elevation-4">
+    <!-- Brand Logo -->
+    <a href="#" class="brand-link text-center" @click.prevent="abrirDashboard">
+      <span class="brand-text font-weight-light brand-text-custom">OCONCA <small>CIMTRA</small></span>
+    </a>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <!-- Active Evaluation Info -->
+      <div class="user-panel mt-3 pb-3 mb-3 d-flex flex-column" v-if="entidad && periodo">
+        <div class="info text-white">
+          <small class="text-muted d-block">EVALUACIÓN ACTIVA</small>
+          <strong>{{ entidad }}</strong>
+          <span class="badge badge-info float-right">{{ tipo }}</span>
+          <br>
+          <small><i class="far fa-calendar-alt mr-1"></i> {{ periodo }}</small>
+        </div>
+      </div>
+
+      <!-- Sidebar Menu -->
+      <nav class="mt-2">
+        <ul class="nav nav-pills nav-sidebar flex-column nav-child-indent" data-accordion="false" role="menu">
+          <li class="nav-header text-uppercase">Campos CIMTRA</li>
+
+          <li v-for="(campo, cIndex) in campos" :key="'campo-'+campo.id" class="nav-item" :class="{ 'menu-open': isCampoAbierto(cIndex) }">
+            <a href="#" class="nav-link" :class="{ active: isCampoAbierto(cIndex) }" @click.prevent="toggleCampo(cIndex)">
+              <i class="nav-icon fas fa-folder"></i>
+              <p>
+                {{ campo.nombre }}
+                <i class="right fas fa-angle-left"></i>
+              </p>
+            </a>
+            <ul class="nav nav-treeview" :style="{ display: isCampoAbierto(cIndex) ? 'block' : 'none' }">
+              <li v-for="bloque in campo.bloques" :key="'bloque-'+bloque.id" class="nav-item">
+                <a href="#" class="nav-link" :class="{ active: bloqueSeleccionado && bloqueSeleccionado.id === bloque.id }" @click.prevent="seleccionarBloque(bloque, cIndex)">
+                  <i class="far fa-file-alt nav-icon text-info"></i>
+                  <p>{{ (bloque.nombre || '').replace('BLOQUE', '').trim() }}</p>
+                </a>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
+      <!-- /.sidebar-menu -->
+    </div>
+    <!-- /.sidebar -->
+  </aside>
+
+  <!-- Content Wrapper. Contains page content -->
+  <div class="content-wrapper">
+
+    <!-- Content Header -->
+    <div class="content-header">
+      <div class="container-fluid">
+        <div class="row mb-2">
+          <div class="col-sm-6">
+            <h1 class="m-0 text-dark">
+              <template v-if="bloqueSeleccionado">
+                {{ bloqueSeleccionado.nombre }}
+              </template>
+              <template v-else-if="vistaActual === 'estadisticas'">
+                <i class="fas fa-chart-line text-warning mr-2"></i> Estadísticas y Reportes CIMTRA
+              </template>
+              <template v-else>
+                Dashboard OCONCA
+              </template>
+            </h1>
+          </div>
+          <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-right">
+              <li class="breadcrumb-item"><a href="#" @click.prevent="abrirDashboard">Inicio</a></li>
+              <li class="breadcrumb-item active" v-if="bloqueSeleccionado">{{ bloqueSeleccionado.nombre }}</li>
+              <li class="breadcrumb-item active" v-else-if="vistaActual === 'estadisticas'">Estadísticas</li>
+              <li class="breadcrumb-item active" v-else>Resumen</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main content -->
+    <section class="content">
+      <div class="container-fluid">
+
+        <!-- Banner para iniciar sesión si no lo ha hecho -->
+        <div v-if="!isLoggedIn" class="alert alert-warning alert-dismissible">
+          <h5><i class="icon fas fa-exclamation-triangle"></i> ¡Modo Invitado!</h5>
+          Inicia sesión para sincronizar y guardar tus evaluaciones en la base de datos PostgreSQL.
+          <button class="btn btn-dark btn-sm ml-3" data-toggle="modal" data-target="#modalAuth">Iniciar Sesión</button>
+        </div>
+
+        <!-- Toast de guardado exitoso -->
+        <div v-if="savedSuccessMsg" class="alert alert-success alert-dismissible toast-saved-banner fade show" role="alert">
+          <button type="button" class="close" @click="savedSuccessMsg = null">&times;</button>
+          <h5><i class="icon fas fa-check-circle"></i> ¡Guardado!</h5>
+          {{ savedSuccessMsg }}
+        </div>
+
+        <!-- VISTA ESTADÍSTICAS Y REPORTES -->
+        <template v-if="vistaActual === 'estadisticas' && !bloqueSeleccionado">
+          <div class="card card-navy card-outline card-outline-tabs">
+            <div class="card-header p-0 border-bottom-0">
+              <ul class="nav nav-tabs" role="tablist">
+                <li class="nav-item">
+                  <a class="nav-link font-weight-bold" :class="{ active: tabEstadistica === 'activa' }" href="#" @click.prevent="tabEstadistica = 'activa'; $nextTick(renderizarGraficos)">
+                    <i class="fas fa-chart-pie mr-1 text-info"></i> Estadísticas de la Revisión Activa
+                    <span v-if="entidad && periodo" class="badge badge-info ml-1">{{ entidad }} ({{ periodo }})</span>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link font-weight-bold" :class="{ active: tabEstadistica === 'general' }" href="#" @click.prevent="tabEstadistica = 'general'; $nextTick(renderizarGraficos)">
+                    <i class="fas fa-history mr-1 text-success"></i> Histórico General de Evaluaciones
+                    <span class="badge badge-success ml-1">{{ listaRevisiones.length }}</span>
+                  </a>
+                </li>
+              </ul>
+            </div>
+            <div class="card-body">
+              <!-- TAB 1: ESTADÍSTICAS DE LA REVISIÓN ACTIVA -->
+              <div v-if="tabEstadistica === 'activa'">
+                <div v-if="!entidad || !periodo" class="alert alert-info py-3">
+                  <h5><i class="fas fa-info-circle mr-1"></i> Sin Evaluación Activa Seleccionada</h5>
+                  Carga una evaluación desde el <a href="#" @click.prevent="abrirDashboard" class="font-weight-bold text-navy text-underline">Dashboard</a> o crea una nueva para explorar sus métricas y gráficos.
+                </div>
+                <div v-else>
+                  <!-- KPIs de la revisión activa -->
+                  <div class="row">
+                    <div class="col-lg-3 col-6">
+                      <div class="small-box bg-info">
+                        <div class="inner">
+                          <h3>{{ calcularPorcentajeGlobal() }}%</h3>
+                          <p>Cumplimiento Global</p>
+                        </div>
+                        <div class="icon"><i class="fas fa-percentage"></i></div>
+                      </div>
+                    </div>
+                    <div class="col-lg-3 col-6">
+                      <div class="small-box bg-success">
+                        <div class="inner">
+                          <h3>{{ calcularPuntajeGlobal() }} <small class="text-white">/ {{ calcularPuntajeMaximoGlobal() }}</small></h3>
+                          <p>Puntos Obtenidos</p>
+                        </div>
+                        <div class="icon"><i class="fas fa-check-circle"></i></div>
+                      </div>
+                    </div>
+                    <div class="col-lg-3 col-6">
+                      <div class="small-box bg-warning">
+                        <div class="inner">
+                          <h3>{{ getStatsActiva().criterios_no }} <small class="text-dark">/ {{ getStatsActiva().total_criterios }}</small></h3>
+                          <p>Puntos No Cumplidos</p>
+                        </div>
+                        <div class="icon"><i class="fas fa-times-circle"></i></div>
+                      </div>
+                    </div>
+                    <div class="col-lg-3 col-6">
+                      <div class="small-box bg-danger">
+                        <div class="inner">
+                          <h3>{{ getStatsActiva().total_observaciones }}</h3>
+                          <p>Observaciones Redactadas</p>
+                        </div>
+                        <div class="icon"><i class="fas fa-comment-dots"></i></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Resumen de Deficiencias y Estado -->
+                  <div class="row">
+                    <div class="col-md-3 col-sm-6 col-12">
+                      <div class="info-box bg-light">
+                        <span class="info-box-icon bg-danger"><i class="fas fa-ban"></i></span>
+                        <div class="info-box-content">
+                          <span class="info-box-text">No Existe</span>
+                          <span class="info-box-number text-danger">{{ getStatsActiva().deficiencias.no_existe }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6 col-12">
+                      <div class="info-box bg-light">
+                        <span class="info-box-icon bg-warning"><i class="fas fa-clock"></i></span>
+                        <div class="info-box-content">
+                          <span class="info-box-text">No Actualizada</span>
+                          <span class="info-box-number text-warning">{{ getStatsActiva().deficiencias.no_actualizada }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6 col-12">
+                      <div class="info-box bg-light">
+                        <span class="info-box-icon bg-info"><i class="fas fa-low-vision"></i></span>
+                        <div class="info-box-content">
+                          <span class="info-box-text">Ilegible</span>
+                          <span class="info-box-number text-info">{{ getStatsActiva().deficiencias.ilegible }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6 col-12">
+                      <div class="info-box bg-light">
+                        <span class="info-box-icon bg-dark"><i class="fas fa-unlink"></i></span>
+                        <div class="info-box-content">
+                          <span class="info-box-text">Enlace Roto</span>
+                          <span class="info-box-number text-dark">{{ getStatsActiva().deficiencias.enlace_roto }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Gráficos de la revisión activa -->
+                  <div class="row">
+                    <div class="col-lg-8">
+                      <div class="card card-navy card-outline">
+                        <div class="card-header">
+                          <h3 class="card-title font-weight-bold"><i class="fas fa-chart-bar mr-1 text-navy"></i> Porcentaje de Cumplimiento por Campo CIMTRA</h3>
+                        </div>
+                        <div class="card-body">
+                          <div style="position: relative; height: 280px;">
+                            <canvas id="chartCampos"></canvas>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-lg-4">
+                      <div class="card card-navy card-outline">
+                        <div class="card-header">
+                          <h3 class="card-title font-weight-bold"><i class="fas fa-chart-pie mr-1 text-navy"></i> Distribución de Calificaciones</h3>
+                        </div>
+                        <div class="card-body">
+                          <div style="position: relative; height: 280px;">
+                            <canvas id="chartRespuestas"></canvas>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Tabla Desglosada por Campo y Bloque -->
+                  <div class="card card-navy">
+                    <div class="card-header">
+                      <h3 class="card-title font-weight-bold"><i class="fas fa-table mr-1"></i> Desglose Detallado por Campo y Bloque</h3>
+                    </div>
+                    <div class="card-body p-0 table-responsive">
+                      <table class="table table-striped table-hover m-0">
+                        <thead class="bg-light">
+                          <tr>
+                            <th>Campo CIMTRA</th>
+                            <th>Bloque</th>
+                            <th class="text-center">Total Criterios</th>
+                            <th class="text-center text-success">Sí</th>
+                            <th class="text-center text-danger">No</th>
+                            <th class="text-center text-secondary">N/A</th>
+                            <th class="text-center text-warning">Obs</th>
+                            <th class="text-center">Puntos</th>
+                            <th style="width: 15%;">Cumplimiento</th>
+                            <th class="text-center">Acción</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <template v-for="(campo, cIdx) in campos" :key="'tb-campo-'+campo.id">
+                            <tr v-for="(bloque, bIdx) in campo.bloques" :key="'tb-bloque-'+bloque.id">
+                              <td v-if="bIdx === 0" :rowspan="campo.bloques.length" class="font-weight-bold text-navy align-middle" style="background-color: #f8f9fa;">
+                                {{ campo.nombre }}
+                              </td>
+                              <td class="font-weight-bold">{{ (bloque.nombre || '').replace('BLOQUE', '').trim() }}</td>
+                              <td class="text-center">{{ getStatsBloque(bloque).total_criterios }}</td>
+                              <td class="text-center font-weight-bold text-success">{{ getStatsBloque(bloque).si }}</td>
+                              <td class="text-center font-weight-bold text-danger">{{ getStatsBloque(bloque).no }}</td>
+                              <td class="text-center text-secondary">{{ getStatsBloque(bloque).na }}</td>
+                              <td class="text-center">
+                                <span v-if="getStatsBloque(bloque).observaciones > 0" class="badge badge-warning text-dark">
+                                  {{ getStatsBloque(bloque).observaciones }}
+                                </span>
+                                <span v-else class="text-muted">0</span>
+                              </td>
+                              <td class="text-center font-weight-bold">{{ getStatsBloque(bloque).puntos_obtenidos }} / {{ getStatsBloque(bloque).puntos_maximos }}</td>
+                              <td class="align-middle">
+                                <div class="progress progress-sm mb-1">
+                                  <div class="progress-bar" :class="getStatsBloque(bloque).porcentaje >= 70 ? 'bg-success' : (getStatsBloque(bloque).porcentaje >= 40 ? 'bg-warning' : 'bg-danger')" :style="{ width: getStatsBloque(bloque).porcentaje + '%' }"></div>
+                                </div>
+                                <small class="font-weight-bold">{{ getStatsBloque(bloque).porcentaje }}%</small>
+                              </td>
+                              <td class="text-center">
+                                <button class="btn btn-xs btn-primary font-weight-bold" @click="seleccionarBloque(bloque, cIdx)">
+                                  <i class="fas fa-edit mr-1"></i> Evaluar
+                                </button>
+                              </td>
+                            </tr>
+                          </template>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- TAB 2: HISTÓRICO GENERAL DE EVALUACIONES -->
+              <div v-if="tabEstadistica === 'general'">
+                <!-- KPIs Generales -->
+                <div class="row">
+                  <div class="col-lg-3 col-6">
+                    <div class="small-box bg-navy">
+                      <div class="inner">
+                        <h3>{{ listaRevisiones.length }}</h3>
+                        <p>Total Evaluaciones Guardadas</p>
+                      </div>
+                      <div class="icon"><i class="fas fa-database"></i></div>
+                    </div>
+                  </div>
+                  <div class="col-lg-3 col-6">
+                    <div class="small-box bg-info">
+                      <div class="inner">
+                        <h3>{{ getPromedioCumplimientoGeneral() }}%</h3>
+                        <p>Promedio General Cumplimiento</p>
+                      </div>
+                      <div class="icon"><i class="fas fa-chart-line"></i></div>
+                    </div>
+                  </div>
+                  <div class="col-lg-3 col-6">
+                    <div class="small-box bg-success">
+                      <div class="inner">
+                        <h3>{{ getMejorEvaluacion().porcentaje }}%</h3>
+                        <p>Máxima Calificación ({{ getMejorEvaluacion().entidad || 'N/A' }})</p>
+                      </div>
+                      <div class="icon"><i class="fas fa-trophy"></i></div>
+                    </div>
+                  </div>
+                  <div class="col-lg-3 col-6">
+                    <div class="small-box bg-warning">
+                      <div class="inner">
+                        <h3>{{ getTotalObservacionesGeneral() }}</h3>
+                        <p>Total Observaciones en Sistema</p>
+                      </div>
+                      <div class="icon"><i class="fas fa-comments"></i></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Gráfico Comparativo General -->
+                <div class="card card-navy card-outline mb-3" v-if="listaRevisiones.length > 0">
+                  <div class="card-header">
+                    <h3 class="card-title font-weight-bold"><i class="fas fa-chart-bar mr-1 text-navy"></i> Comparativo de Cumplimiento (%) entre Evaluaciones</h3>
+                  </div>
+                  <div class="card-body">
+                    <div style="position: relative; height: 300px;">
+                      <canvas id="chartGeneral"></canvas>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Tabla Comparativa General -->
+                <div class="card card-navy">
+                  <div class="card-header">
+                    <h3 class="card-title font-weight-bold"><i class="fas fa-list-ol mr-1"></i> Registro Histórico y Desempeño</h3>
+                  </div>
+                  <div class="card-body p-0 table-responsive">
+                    <table class="table table-striped table-hover m-0">
+                      <thead>
+                        <tr>
+                          <th>Entidad Evaluada</th>
+                          <th>Período</th>
+                          <th>Tipo</th>
+                          <th class="text-center">Puntos</th>
+                          <th style="width: 15%;">Cumplimiento</th>
+                          <th class="text-center">Criterios Sí/No/NA</th>
+                          <th class="text-center">Observaciones</th>
+                          <th>Última Modificación</th>
+                          <th>Evaluador</th>
+                          <th class="text-right">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="rev in listaRevisiones" :key="'rev-gen-'+rev.id">
+                          <td class="font-weight-bold text-navy">{{ rev.entidad }}</td>
+                          <td><span class="badge badge-secondary">{{ rev.periodo }}</span></td>
+                          <td><span class="badge" :class="rev.tipo === 'Congreso' ? 'badge-info' : 'badge-primary'">{{ rev.tipo }}</span></td>
+                          <td class="text-center font-weight-bold">
+                            {{ rev.stats ? rev.stats.puntos_obtenidos + ' / ' + rev.stats.puntos_maximos : 'N/A' }}
+                          </td>
+                          <td>
+                            <template v-if="rev.stats">
+                              <div class="progress progress-sm mb-1">
+                                <div class="progress-bar" :class="rev.stats.porcentaje >= 70 ? 'bg-success' : (rev.stats.porcentaje >= 40 ? 'bg-warning' : 'bg-danger')" :style="{ width: rev.stats.porcentaje + '%' }"></div>
+                              </div>
+                              <small class="font-weight-bold">{{ rev.stats.porcentaje }}%</small>
+                            </template>
+                            <span v-else class="text-muted">N/A</span>
+                          </td>
+                          <td class="text-center">
+                            <template v-if="rev.stats">
+                              <span class="badge badge-success mr-1" title="Sí">{{ rev.stats.criterios_si }}</span>
+                              <span class="badge badge-danger mr-1" title="No">{{ rev.stats.criterios_no }}</span>
+                              <span class="badge badge-secondary" title="N/A">{{ rev.stats.criterios_na }}</span>
+                            </template>
+                          </td>
+                          <td class="text-center">
+                            <span v-if="rev.stats && rev.stats.total_observaciones > 0" class="badge badge-warning text-dark font-weight-bold">
+                              {{ rev.stats.total_observaciones }}
+                            </span>
+                            <span v-else class="text-muted">0</span>
+                          </td>
+                          <td><small>{{ rev.ultima_modificacion || 'N/A' }}</small></td>
+                          <td><small><i class="fas fa-user mr-1 text-muted"></i> {{ rev.ultimo_usuario }}</small></td>
+                          <td class="text-right">
+                            <button class="btn btn-xs btn-primary mr-1" @click="cargarEvaluacionBD(rev)" title="Cargar y evaluar">
+                              <i class="fas fa-folder-open mr-1"></i> Cargar
+                            </button>
+                            <button class="btn btn-xs btn-danger" @click="borrarEvaluacion(rev.id)" v-if="isLoggedIn" title="Eliminar evaluación">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          </td>
+                        </tr>
+                        <tr v-if="listaRevisiones.length === 0">
+                          <td colspan="10" class="text-center text-muted py-4">No hay evaluaciones guardadas aún.</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Desglose por Campo de Todas las Revisiones -->
+                <div class="card card-navy card-outline mt-4">
+                  <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
+                    <h3 class="card-title font-weight-bold mb-0">
+                      <i class="fas fa-layer-group mr-2 text-warning"></i> Desglose Detallado por Campo CIMTRA (Histórico por Revisión)
+                    </h3>
+                    <div class="card-tools d-flex align-items-center ml-auto">
+                      <label class="mr-2 mb-0 font-weight-normal text-muted"><small>Filtrar por Revisión:</small></label>
+                      <select class="form-control form-control-sm" v-model="filtroRevisionCampo" style="width: auto; min-width: 220px;">
+                        <option value="todas">-- Todas las Revisiones ({{ listaRevisiones.length }}) --</option>
+                        <option v-for="rev in listaRevisiones" :key="'opt-rev-'+rev.id" :value="rev.id">
+                          {{ rev.entidad }} ({{ rev.periodo }} - {{ rev.tipo }})
+                        </option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="card-body p-0 table-responsive">
+                    <table class="table table-striped table-hover m-0">
+                      <thead class="bg-light">
+                        <tr>
+                          <th style="width: 25%;">Revisión Correspondiente</th>
+                          <th style="width: 25%;">Campo CIMTRA</th>
+                          <th class="text-center" style="width: 10%;">Puntos</th>
+                          <th style="width: 15%;">Cumplimiento</th>
+                          <th class="text-center" style="width: 15%;">Criterios (Sí / No / N/A)</th>
+                          <th class="text-center" style="width: 10%;">Observaciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <template v-for="rev in getRevisionesFiltradas()" :key="'rev-camp-group-'+rev.id">
+                          <template v-if="rev.stats && rev.stats.desglose_campos && rev.stats.desglose_campos.length > 0">
+                            <tr v-for="(campo, cIdx) in rev.stats.desglose_campos" :key="'rev-'+rev.id+'-c-'+campo.id">
+                              <!-- Celda de Revisión Correspondiente con rowspan -->
+                              <td v-if="cIdx === 0" :rowspan="rev.stats.desglose_campos.length" class="align-middle bg-light border-right">
+                                <div class="d-flex flex-column p-2">
+                                  <span class="font-weight-bold text-navy" style="font-size: 1.05rem;">
+                                    <i class="fas fa-building mr-1"></i> {{ rev.entidad }}
+                                  </span>
+                                  <div class="mt-1">
+                                    <span class="badge badge-secondary mr-1"><i class="far fa-calendar-alt mr-1"></i> {{ rev.periodo }}</span>
+                                    <span class="badge" :class="rev.tipo === 'Congreso' ? 'badge-info' : 'badge-primary'">{{ rev.tipo }}</span>
+                                  </div>
+                                  <small class="text-muted mt-2">
+                                    <i class="fas fa-chart-pie mr-1"></i> Global: <strong>{{ rev.stats.porcentaje }}%</strong> ({{ rev.stats.puntos_obtenidos }}/{{ rev.stats.puntos_maximos }} pts)
+                                  </small>
+                                  <button class="btn btn-xs btn-outline-primary mt-2 font-weight-bold align-self-start" @click="cargarEvaluacionBD(rev)">
+                                    <i class="fas fa-folder-open mr-1"></i> Abrir Evaluación
+                                  </button>
+                                </div>
+                              </td>
+                              <td class="align-middle">
+                                <strong>{{ campo.nombre }}</strong>
+                              </td>
+                              <td class="text-center align-middle font-weight-bold">
+                                {{ campo.puntos_obtenidos }} / {{ campo.puntos_maximos }}
+                              </td>
+                              <td class="align-middle">
+                                <div class="progress progress-sm mb-1">
+                                  <div class="progress-bar" :class="campo.porcentaje >= 70 ? 'bg-success' : (campo.porcentaje >= 40 ? 'bg-warning' : 'bg-danger')" :style="{ width: campo.porcentaje + '%' }"></div>
+                                </div>
+                                <small class="font-weight-bold">{{ campo.porcentaje }}%</small>
+                              </td>
+                              <td class="text-center align-middle">
+                                <span class="badge badge-success mr-1" title="Sí">{{ campo.criterios_si }}</span>
+                                <span class="badge badge-danger mr-1" title="No">{{ campo.criterios_no }}</span>
+                                <span class="badge badge-secondary" title="N/A">{{ campo.criterios_na }}</span>
+                              </td>
+                              <td class="text-center align-middle">
+                                <span v-if="campo.observaciones > 0" class="badge badge-warning text-dark font-weight-bold">
+                                  {{ campo.observaciones }}
+                                </span>
+                                <span v-else class="text-muted">0</span>
+                              </td>
+                            </tr>
+                          </template>
+                          <tr v-else :key="'rev-no-stats-'+rev.id">
+                            <td class="font-weight-bold text-navy">{{ rev.entidad }} ({{ rev.periodo }})</td>
+                            <td colspan="5" class="text-muted font-italic">Sin desglose disponible para esta evaluación.</td>
+                          </tr>
+                        </template>
+                        <tr v-if="getRevisionesFiltradas().length === 0">
+                          <td colspan="6" class="text-center text-muted py-4">No hay revisiones para mostrar con el filtro seleccionado.</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- VISTA DASHBOARD INICIAL -->
+        <template v-else-if="vistaActual === 'dashboard' && !bloqueSeleccionado">
+          <div class="row">
+            <!-- Small boxes -->
+            <div class="col-lg-3 col-6">
+              <div class="small-box bg-info">
+                <div class="inner">
+                  <h3>{{ calcularPorcentajeGlobal() }}<sup style="font-size: 20px">%</sup></h3>
+                  <p>Cumplimiento Global</p>
+                </div>
+                <div class="icon">
+                  <i class="fas fa-chart-pie"></i>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-3 col-6">
+              <div class="small-box bg-success">
+                <div class="inner">
+                  <h3>{{ calcularPuntajeGlobal() }} <small class="text-white">/ {{ calcularPuntajeMaximoGlobal() }}</small></h3>
+                  <p>Puntos Obtenidos</p>
+                </div>
+                <div class="icon">
+                  <i class="fas fa-check-circle"></i>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-3 col-6">
+              <div class="small-box bg-warning">
+                <div class="inner">
+                  <h3>{{ entidad || 'Sin seleccionar' }}</h3>
+                  <p>Entidad Evaluada ({{ tipo }})</p>
+                </div>
+                <div class="icon">
+                  <i class="fas fa-building"></i>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-3 col-6">
+              <div class="small-box bg-danger">
+                <div class="inner">
+                  <h3>{{ listaRevisiones.length }}</h3>
+                  <p>Evaluaciones Guardadas BD</p>
+                </div>
+                <div class="icon">
+                  <i class="fas fa-database"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Progress Bar Global con enlace a Estadísticas -->
+          <div class="card card-navy card-outline">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h3 class="card-title font-weight-bold mb-0">
+                <i class="fas fa-tasks mr-2 text-navy"></i> Progreso General CIMTRA
+              </h3>
+              <div class="card-tools ml-auto">
+                <button class="btn btn-xs btn-outline-info font-weight-bold" @click="abrirEstadisticas">
+                  <i class="fas fa-chart-pie mr-1"></i> Ver Estadísticas y Gráficos
+                </button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="progress progress-xl mb-3">
+                <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" 
+                     role="progressbar" 
+                     :style="{ width: calcularPorcentajeGlobal() + '%' }" 
+                     :aria-valuenow="calcularPorcentajeGlobal()" aria-valuemin="0" aria-valuemax="100">
+                  {{ calcularPorcentajeGlobal() }}%
+                </div>
+              </div>
+              <p class="text-muted mb-0" v-if="ultimoUsuario">
+                Última modificación realizada por <strong>{{ ultimoUsuario }}</strong> el <code>{{ ultimaModificacion }}</code>
+              </p>
+            </div>
+          </div>
+
+          <!-- Tabla de evaluaciones guardadas en BD -->
+          <div class="card card-navy">
+            <div class="card-header">
+              <h3 class="card-title font-weight-bold"><i class="fas fa-list mr-2"></i> Evaluaciones Registradas en Base de Datos</h3>
+              <div class="card-tools">
+                <button class="btn btn-warning btn-sm" data-toggle="modal" data-target="#modalNuevaRevision">
+                  <i class="fas fa-plus mr-1"></i> Nueva Evaluación
+                </button>
+              </div>
+            </div>
+            <div class="card-body p-0">
+              <table class="table table-striped table-hover m-0">
+                <thead>
+                  <tr>
+                    <th>Entidad</th>
+                    <th>Período</th>
+                    <th>Tipo</th>
+                    <th class="text-center">Cumplimiento</th>
+                    <th>Última Modificación</th>
+                    <th>Modificado Por</th>
+                    <th class="text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="rev in listaRevisiones" :key="'rev-'+rev.id">
+                    <td class="font-weight-bold text-navy">{{ rev.entidad }}</td>
+                    <td><span class="badge badge-secondary">{{ rev.periodo }}</span></td>
+                    <td><span class="badge" :class="rev.tipo === 'Congreso' ? 'badge-info' : 'badge-primary'">{{ rev.tipo }}</span></td>
+                    <td class="text-center">
+                      <span v-if="rev.stats" class="badge" :class="rev.stats.porcentaje >= 70 ? 'badge-success' : (rev.stats.porcentaje >= 40 ? 'badge-warning' : 'badge-danger')">
+                        {{ rev.stats.porcentaje }}% ({{ rev.stats.puntos_obtenidos }} pts)
+                      </span>
+                      <span v-else class="text-muted">N/A</span>
+                    </td>
+                    <td><small>{{ rev.ultima_modificacion || 'N/A' }}</small></td>
+                    <td><i class="fas fa-user-sm mr-1 text-muted"></i> {{ rev.ultimo_usuario }}</td>
+                    <td class="text-right">
+                      <button class="btn btn-sm btn-primary mr-1" @click="cargarEvaluacionBD(rev)">
+                        <i class="fas fa-folder-open mr-1"></i> Cargar
+                      </button>
+                      <button class="btn btn-sm btn-danger" @click="borrarEvaluacion(rev.id)" v-if="isLoggedIn">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                  <tr v-if="listaRevisiones.length === 0">
+                    <td colspan="7" class="text-center text-muted py-4">
+                      No hay evaluaciones guardadas aún. ¡Haz clic en "Nueva Evaluación" para comenzar!
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </template>
+
+        <!-- VISTA DE CUESTIONARIO POR BLOQUE (ACORDEÓN DE ASPECTOS) -->
+        <template v-else>
+          <div class="d-flex justify-content-between align-items-center mb-3 bg-white p-3 rounded shadow-sm">
+            <h4 class="text-navy font-weight-bold mb-0">
+              <i class="fas fa-layer-group mr-2 text-warning"></i> {{ bloqueSeleccionado.nombre }}
+            </h4>
+            <button class="btn btn-success font-weight-bold" @click="guardarAvanceManual" :disabled="isSaving" v-if="isLoggedIn && entidad && periodo">
+              <i class="fas fa-save mr-1"></i> {{ isSaving ? 'Guardando...' : 'Guardar Avance' }}
+            </button>
+          </div>
+          <div class="accordion" :id="'accordionBloque-' + bloqueSeleccionado.id">
+            <div v-for="(aspecto, aIndex) in bloqueSeleccionado.aspectos" :key="'asp-'+aspecto.id" class="card card-navy card-outline mb-3">
+              <div class="card-header bg-navy text-white d-flex align-items-center justify-content-between" 
+                   style="cursor: pointer;" 
+                   data-toggle="collapse" 
+                   :data-target="'#collapse-asp-' + aspecto.id">
+                <h3 class="card-title font-weight-bold mb-0">
+                  <i class="fas fa-chevron-down mr-2 text-warning"></i> {{ aspecto.titulo }}
+                </h3>
+                <div class="ml-auto">
+                  <span class="badge badge-light badge-score">
+                    Puntaje: {{ calcularPuntaje(aspecto) }} / {{ calcularPuntajeMaximo(aspecto) }} pts 
+                    ({{ calcularPorcentaje(aspecto) }}%)
+                  </span>
+                </div>
+              </div>
+              <div :id="'collapse-asp-' + aspecto.id" class="collapse" :class="{ show: aIndex === 0 }" :data-parent="'#accordionBloque-' + bloqueSeleccionado.id">
+                <div class="card-body p-0">
+                  <div class="table-responsive">
+                    <table class="table table-bordered table-hover criterios-table m-0">
+                      <thead class="bg-light">
+                        <tr>
+                          <th style="width: 50%;">Criterio / Descripción</th>
+                          <th style="width: 15%;" class="text-center">Cumplimiento</th>
+                          <th style="width: 10%;" class="text-center">Puntos</th>
+                          <th style="width: 25%;">Errores / Observaciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="c in aspecto.criterios" :key="'crit-'+c.id">
+                          <td>
+                            <strong>{{ c.descripcion }}</strong>
+                          </td>
+                          <td class="text-center">
+                            <div class="btn-group btn-group-toggle" data-toggle="buttons">
+                              <label class="btn btn-outline-success btn-sm" :class="{ active: c.cumple === 'si' }">
+                                <input type="radio" value="si" v-model="c.cumple" @change="onCumpleChange(c, 'si')"> Sí
+                              </label>
+                              <label class="btn btn-outline-danger btn-sm" :class="{ active: c.cumple === 'no' }">
+                                <input type="radio" value="no" v-model="c.cumple" @change="onCumpleChange(c, 'no')"> No
+                              </label>
+                              <label class="btn btn-outline-secondary btn-sm" :class="{ active: c.cumple === null }">
+                                <input type="radio" :value="null" v-model="c.cumple" @change="onCumpleChange(c, null)"> N/A
+                              </label>
+                            </div>
+                          </td>
+                          <td class="text-center font-weight-bold">
+                            <span :class="c.cumple === 'si' ? 'text-success font-weight-bold' : 'text-muted'">
+                              {{ c.cumple === 'si' ? c.puntos : 0 }} / {{ c.puntos }}
+                            </span>
+                          </td>
+                          <td>
+                            <div class="d-flex flex-wrap">
+                              <div class="custom-control custom-checkbox mr-3 mb-1">
+                                <input class="custom-control-input" type="checkbox" :id="'err1-'+c.id" v-model="c.errores.no_existe" :disabled="c.cumple === 'si'">
+                                <label :for="'err1-'+c.id" class="custom-control-label font-weight-normal text-danger">No existe</label>
+                              </div>
+                              <div class="custom-control custom-checkbox mr-3 mb-1">
+                                <input class="custom-control-input" type="checkbox" :id="'err2-'+c.id" v-model="c.errores.no_actualizada" :disabled="c.cumple === 'si'">
+                                <label :for="'err2-'+c.id" class="custom-control-label font-weight-normal text-warning">No actualizada</label>
+                              </div>
+                              <button 
+                                type="button" 
+                                class="btn btn-xs btn-sm mr-3 mb-1"
+                                :class="c.comentario && c.comentario.trim().length > 0 ? 'btn-warning text-dark font-weight-bold shadow-sm' : 'btn-outline-primary shadow-sm'"
+                                @click="abrirModalObservacion(c, aspecto, bloqueSeleccionado)"
+                                :title="c.comentario && c.comentario.trim().length > 0 ? 'Editar Observación: ' + c.comentario : 'Agregar Observación'">
+                                <i class="fas" :class="c.comentario && c.comentario.trim().length > 0 ? 'fa-comment-dots mr-1' : 'fa-comment mr-1'"></i>
+                                Observaciones
+                                <span v-if="c.comentario && c.comentario.trim().length > 0" class="badge badge-danger ml-1">✓</span>
+                              </button>
+                              <div class="custom-control custom-checkbox mr-3 mb-1">
+                                <input class="custom-control-input" type="checkbox" :id="'err4-'+c.id" v-model="c.errores.ilegible" :disabled="c.cumple === 'si'">
+                                <label :for="'err4-'+c.id" class="custom-control-label font-weight-normal text-info">Ilegible</label>
+                              </div>
+                              <div class="custom-control custom-checkbox mb-1">
+                                <input class="custom-control-input" type="checkbox" :id="'err5-'+c.id" v-model="c.errores.enlace_roto" :disabled="c.cumple === 'si'">
+                                <label :for="'err5-'+c.id" class="custom-control-label font-weight-normal text-dark">Enlace roto</label>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+      </div>
+    </section>
+  </div>
+
+  <!-- MODAL AUTH -->
+  <div class="modal fade" id="modalAuth" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header bg-navy text-white">
+          <h5 class="modal-title font-weight-bold">
+            <i class="fas fa-user-lock mr-2"></i> {{ isRegistering ? 'Registrar Nuevo Usuario' : 'Iniciar Sesión' }}
+          </h5>
+          <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <form @submit.prevent="isRegistering ? register_user() : login_user()">
+          <div class="modal-body">
+            <div v-if="loginError" class="alert alert-danger">
+              <i class="fas fa-exclamation-circle mr-1"></i> {{ loginError }}
+            </div>
+
+
+            <div class="form-group">
+              <label>Usuario</label>
+              <input type="text" class="form-control" v-model="authUsername" placeholder="Ingresa tu usuario" required>
+            </div>
+            <div class="form-group">
+              <label>Contraseña</label>
+              <input type="password" class="form-control" v-model="authPassword" placeholder="Ingresa tu contraseña" required>
+            </div>
+          </div>
+          <div class="modal-footer justify-content-between">
+            <button type="button" class="btn btn-link" @click="isRegistering = !isRegistering">
+              {{ isRegistering ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate' }}
+            </button>
+            <button type="submit" class="btn btn-navy bg-navy">
+              {{ isRegistering ? 'Registrar' : 'Entrar' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL NUEVA REVISIÓN -->
+  <div class="modal fade" id="modalNuevaRevision" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header bg-warning">
+          <h5 class="modal-title font-weight-bold"><i class="fas fa-plus-circle mr-2"></i> Nueva Evaluación CIMTRA</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <form @submit.prevent="iniciarRevision">
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Entidad Evaluada</label>
+              <input type="text" class="form-control" v-model="nuevaEntidad" placeholder="Ej. Municipio Guadalajara" required>
+            </div>
+            <div class="form-group">
+              <label>Período</label>
+              <input type="text" class="form-control" v-model="nuevoPeriodo" placeholder="Ej. 2026-I" required>
+            </div>
+            <div class="form-group">
+              <label>Tipo de Evaluación</label>
+              <select class="form-control" v-model="nuevoTipo">
+                <option value="Capital">Capital (CIMTRA Municipal)</option>
+                <option value="Congreso">Congreso (CIMTRA Legislativo)</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-warning font-weight-bold">Comenzar Evaluación</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EDITOR COMPACTO DE OBSERVACIONES -->
+  <div class="modal fade" id="modalObservacion" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+      <div class="modal-content shadow-lg border-navy">
+        <div class="modal-header bg-navy text-white py-2">
+          <h5 class="modal-title font-weight-bold">
+            <i class="fas fa-edit text-warning mr-2"></i> Observación del Criterio
+          </h5>
+          <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body" v-if="criterioEnEdicion">
+          <!-- Contexto de la Revisión Activa -->
+          <div class="card card-outline card-navy mb-3 bg-light">
+            <div class="card-body p-2">
+              <div class="row">
+                <div class="col-sm-4">
+                  <small class="text-muted d-block font-weight-bold">ENTIDAD EVALUADA:</small>
+                  <span class="text-navy font-weight-bold"><i class="fas fa-building mr-1"></i> {{ entidad }}</span>
+                </div>
+                <div class="col-sm-4">
+                  <small class="text-muted d-block font-weight-bold">PERÍODO / TIPO:</small>
+                  <span><i class="far fa-calendar-alt mr-1"></i> {{ periodo }} <span class="badge badge-info ml-1">{{ tipo }}</span></span>
+                </div>
+                <div class="col-sm-4">
+                  <small class="text-muted d-block font-weight-bold">BLOQUE:</small>
+                  <span class="text-truncate d-block" :title="bloqueEnEdicion ? bloqueEnEdicion.nombre : ''">
+                    <i class="fas fa-folder-open mr-1 text-warning"></i> {{ bloqueEnEdicion ? bloqueEnEdicion.nombre : 'N/A' }}
+                  </span>
+                </div>
+              </div>
+              <hr class="my-2">
+              <div>
+                <small class="text-muted d-block font-weight-bold">ASPECTO:</small>
+                <small class="text-secondary font-italic">{{ aspectoEnEdicion ? aspectoEnEdicion.titulo : '' }}</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Detalle del Criterio -->
+          <div class="alert alert-secondary py-2 px-3 mb-3">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <strong class="text-navy d-block mb-1">
+                  <i class="fas fa-check-square mr-1 text-danger"></i> Criterio:
+                </strong>
+                <span>{{ criterioEnEdicion.descripcion }}</span>
+              </div>
+              <span class="badge ml-2 p-2" :class="criterioEnEdicion.cumple === 'si' ? 'badge-success' : (criterioEnEdicion.cumple === 'no' ? 'badge-danger' : 'badge-secondary')" style="font-size: 0.9rem;">
+                Calificación: {{ criterioEnEdicion.cumple === 'si' ? 'SÍ (' + criterioEnEdicion.puntos + '/' + criterioEnEdicion.puntos + ' pts)' : (criterioEnEdicion.cumple === 'no' ? 'NO (0/' + criterioEnEdicion.puntos + ' pts)' : 'N/A') }}
+              </span>
+            </div>
+            
+            <!-- Deficiencias marcadas -->
+            <div class="mt-2 pt-2 border-top" v-if="criterioEnEdicion.errores">
+              <small class="font-weight-bold text-muted mr-2">Deficiencias asociadas:</small>
+              <span class="badge badge-danger mr-1" v-if="criterioEnEdicion.errores.no_existe">No existe</span>
+              <span class="badge badge-warning mr-1" v-if="criterioEnEdicion.errores.no_actualizada">No actualizada</span>
+              <span class="badge badge-info mr-1" v-if="criterioEnEdicion.errores.ilegible">Ilegible</span>
+              <span class="badge badge-dark mr-1" v-if="criterioEnEdicion.errores.enlace_roto">Enlace roto</span>
+              <span class="text-muted font-italic" v-if="!criterioEnEdicion.errores.no_existe && !criterioEnEdicion.errores.no_actualizada && !criterioEnEdicion.errores.ilegible && !criterioEnEdicion.errores.enlace_roto">
+                (Sin deficiencias específicas marcadas)
+              </span>
+            </div>
+          </div>
+
+          <!-- Editor de Comentario / Observación -->
+          <div class="form-group mb-0">
+            <label class="font-weight-bold text-dark d-flex justify-content-between">
+              <span><i class="fas fa-pen-fancy mr-1 text-primary"></i> Redactar Observación / Justificación:</span>
+              <small class="text-muted font-weight-normal">Se incluirá en el informe Word de observaciones</small>
+            </label>
+            <textarea 
+              class="form-control" 
+              rows="5" 
+              v-model="textoObservacionTemporal" 
+              placeholder="Ejemplo: No se encontró publicado el desglose de gastos en comunicación social correspondiente al período evaluado; el portal de transparencia no contiene el archivo ni enlaces vigentes...">
+            </textarea>
+            <small class="form-text text-muted mt-1">
+              <i class="fas fa-info-circle mr-1"></i> Este comentario se guardará en la revisión activa y se exportará en el archivo de observaciones en Word al finalizar.
+            </small>
+          </div>
+        </div>
+        <div class="modal-footer justify-content-between py-2">
+          <button type="button" class="btn btn-outline-danger btn-sm" @click="limpiarObservacionModal" v-if="textoObservacionTemporal">
+            <i class="fas fa-trash-alt mr-1"></i> Limpiar Observación
+          </button>
+          <div v-else></div>
+          <div>
+            <button type="button" class="btn btn-secondary btn-sm mr-2" data-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-success btn-sm font-weight-bold" @click="guardarObservacionModal">
+              <i class="fas fa-save mr-1"></i> Guardar Observación
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Footer -->
+  <footer class="main-footer text-sm">
+    <strong>OCONCA &copy; 2026.</strong> Sistema de Evaluación CIMTRA.
+    <div class="float-right d-none d-sm-inline-block">
+      <b>Versión</b> 2.0 (Django + AdminLTE)
+    </div>
+  </footer>
+</div>
+{% endverbatim %}
+
+<!-- REQUIRED SCRIPTS -->
+<!-- jQuery -->
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+<!-- Bootstrap 4 -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+<!-- AdminLTE App -->
+<script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Vue 3 -->
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="{% static 'js/cimtra_data.js' %}"></script>
+<script src="{% static 'js/cimtra_data_congreso.js' %}"></script>
+
+<script>
+  const { createApp } = Vue;
+
+  createApp({
+    data() {
+      return {
+        campos: (typeof cimtraData !== 'undefined') ? JSON.parse(JSON.stringify(cimtraData)) : [],
+        campoSeleccionado: null,
+        camposAbiertos: {},
+        bloqueSeleccionado: null,
+        vistaActual: 'dashboard',
+        tabEstadistica: 'activa',
+        entidad: '',
+        periodo: '',
+        tipo: 'Capital',
+        isLoggedIn: false,
+        username: '',
+        esAdmin: false,
+        token: null,
+        authUsername: '',
+        authPassword: '',
+        isRegistering: false,
+        loginError: null,
+        nuevaEntidad: '',
+        nuevoPeriodo: '',
+        nuevoTipo: 'Capital',
+        ultimoUsuario: null,
+        ultimaModificacion: null,
+        listaRevisiones: [],
+        isSavingPaused: false,
+        isSaving: false,
+        savedSuccessMsg: null,
+        criterioEnEdicion: null,
+        aspectoEnEdicion: null,
+        bloqueEnEdicion: null,
+        textoObservacionTemporal: '',
+        filtroRevisionCampo: 'todas',
+        chartCamposInstance: null,
+        chartRespuestasInstance: null,
+        chartGeneralInstance: null
+      };
+    },
+    mounted() {
+      const savedToken = localStorage.getItem('cimtraToken');
+      const savedEntidad = localStorage.getItem('cimtraEntidad');
+      const savedPeriodo = localStorage.getItem('cimtraPeriodo');
+      const savedTipo = localStorage.getItem('cimtraTipo');
+
+      if (savedEntidad) this.entidad = savedEntidad;
+      if (savedPeriodo) this.periodo = savedPeriodo;
+      if (savedTipo) this.tipo = savedTipo;
+
+      if (savedToken) {
+        this.token = savedToken;
+        this.checkAuthMe();
+      }
+    },
+    watch: {
+      campos: {
+        handler(newValue) {
+          if (this.isSavingPaused) return;
+          localStorage.setItem('cimtraProgress', JSON.stringify(newValue));
+          if (this.isLoggedIn && this.entidad && this.periodo) {
+            this.guardarEnBD();
+          }
+          if (this.vistaActual === 'estadisticas') {
+            this.$nextTick(() => { this.renderizarGraficos(); });
+          }
+        },
+        deep: true
+      },
+      entidad(val) { localStorage.setItem('cimtraEntidad', val); },
+      periodo(val) { localStorage.setItem('cimtraPeriodo', val); },
+      tipo(val) { localStorage.setItem('cimtraTipo', val); }
+    },
+    methods: {
+      toggleCampo(cIndex) {
+        this.camposAbiertos[cIndex] = !this.camposAbiertos[cIndex];
+      },
+      isCampoAbierto(cIndex) {
+        return !!this.camposAbiertos[cIndex];
+      },
+      seleccionarBloque(bloque, cIndex) {
+        this.bloqueSeleccionado = bloque;
+        this.vistaActual = 'cuestionario';
+        if (typeof cIndex !== 'undefined') {
+          this.camposAbiertos[cIndex] = true;
+        }
+      },
+      abrirDashboard() {
+        this.bloqueSeleccionado = null;
+        this.vistaActual = 'dashboard';
+      },
+      abrirEstadisticas() {
+        this.bloqueSeleccionado = null;
+        this.vistaActual = 'estadisticas';
+        this.$nextTick(() => {
+          this.renderizarGraficos();
+        });
+      },
+      async checkAuthMe() {
+        try {
+          const res = await fetch('/api/me', {
+            headers: { 'Authorization': 'Bearer ' + this.token }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            this.username = data.username;
+            this.esAdmin = data.es_admin;
+            this.isLoggedIn = true;
+            this.cargarListaRevisiones();
+            if (this.entidad && this.periodo) {
+              this.cargarDeBD();
+            }
+          } else {
+            this.logout();
+          }
+        } catch (e) {
+          console.error("Error validando token:", e);
+          this.logout();
+        }
+      },
+      async _safeJson(res) {
+        try {
+          const text = await res.text();
+          return JSON.parse(text);
+        } catch (e) {
+          return null;
+        }
+      },
+      async login_user() {
+        this.loginError = null;
+        try {
+          const res = await fetch('/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: this.authUsername.trim(), password: this.authPassword })
+          });
+          if (!res.ok) {
+            const data = await this._safeJson(res);
+            throw new Error((data && data.detail) || `Error del servidor (${res.status})`);
+          }
+          const data = await this._safeJson(res);
+          if (!data || !data.access_token) {
+            throw new Error('Respuesta inesperada del servidor');
+          }
+          this.token = data.access_token;
+          localStorage.setItem('cimtraToken', this.token);
+          this.authPassword = '';
+          $('#modalAuth').modal('hide');
+          this.checkAuthMe();
+        } catch (err) {
+          this.loginError = err.message;
+        }
+      },
+      async register_user() {
+        this.loginError = null;
+        try {
+          const res = await fetch('/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: this.authUsername.trim(), password: this.authPassword })
+          });
+          if (!res.ok) {
+            const data = await this._safeJson(res);
+            throw new Error((data && data.detail) || `Error del servidor (${res.status})`);
+          }
+          alert("¡Registro exitoso! Ahora puedes iniciar sesión con tus credenciales.");
+          this.isRegistering = false;
+        } catch (err) {
+          this.loginError = err.message;
+        }
+      },
+      logout() {
+        this.isLoggedIn = false;
+        this.token = null;
+        this.username = '';
+        this.esAdmin = false;
+        localStorage.removeItem('cimtraToken');
+      },
+      onCumpleChange(c, val) {
+        c.cumple = val;
+        if (val === 'si' && c.errores) {
+          c.errores.no_existe = false;
+          c.errores.no_actualizada = false;
+          c.errores.no_corresponde = false;
+          c.errores.ilegible = false;
+          c.errores.enlace_roto = false;
+        }
+      },
+      async guardarAvanceManual() {
+        if (!this.token) {
+          return alert("Por favor inicia sesión para guardar tu avance.");
+        }
+        if (!this.entidad || !this.periodo) {
+          return alert("Selecciona o crea una evaluación con Entidad y Período para guardar.");
+        }
+        this.isSaving = true;
+        try {
+          const res = await fetch('/api/guardar', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + this.token
+            },
+            body: JSON.stringify({
+              entidad: this.entidad,
+              periodo: this.periodo,
+              tipo: this.tipo,
+              cuestionario_data: this.campos
+            })
+          });
+          if (res.ok) {
+            this.savedSuccessMsg = `¡Avance de ${this.entidad} (${this.periodo}) guardado exitosamente!`;
+            setTimeout(() => { this.savedSuccessMsg = null; }, 4000);
+            this.cargarListaRevisiones();
+          } else {
+            alert("Ocurrió un error al guardar el avance.");
+          }
+        } catch (e) {
+          console.error("Error guardando avance:", e);
+          alert("Error de red al guardar el avance.");
+        } finally {
+          this.isSaving = false;
+        }
+      },
+      async guardarEnBD() {
+        if (!this.token || !this.entidad || !this.periodo) return;
+        try {
+          await fetch('/api/guardar', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + this.token
+            },
+            body: JSON.stringify({
+              entidad: this.entidad,
+              periodo: this.periodo,
+              tipo: this.tipo,
+              cuestionario_data: this.campos
+            })
+          });
+        } catch (e) { console.error("Error guardando en BD:", e); }
+      },
+      async cargarDeBD() {
+        if (!this.token) return;
+        this.isSavingPaused = true;
+        try {
+          const res = await fetch(`/api/cargar?entidad=${encodeURIComponent(this.entidad)}&periodo=${encodeURIComponent(this.periodo)}&tipo=${encodeURIComponent(this.tipo)}`, {
+            headers: { 'Authorization': 'Bearer ' + this.token }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            this.campos = data.cuestionario_data;
+            if (data.tipo) this.tipo = data.tipo;
+            this.ultimoUsuario = data.ultimo_usuario || 'Desconocido';
+            this.ultimaModificacion = data.ultima_modificacion || '';
+          } else {
+            if (this.tipo === 'Congreso' && typeof cimtraDataCongreso !== 'undefined') {
+              this.campos = JSON.parse(JSON.stringify(cimtraDataCongreso));
+            } else if (typeof cimtraData !== 'undefined') {
+              this.campos = JSON.parse(JSON.stringify(cimtraData));
+            }
+            this.ultimoUsuario = null;
+            this.ultimaModificacion = null;
+          }
+        } catch (e) {
+          console.error("Error cargando de BD:", e);
+        } finally {
+          setTimeout(() => { this.isSavingPaused = false; }, 100);
+        }
+      },
+      async cargarListaRevisiones() {
+        if (!this.token) return;
+        try {
+          const res = await fetch('/api/evaluaciones', {
+            headers: { 'Authorization': 'Bearer ' + this.token }
+          });
+          if (res.ok) {
+            this.listaRevisiones = await res.json();
+            if (this.vistaActual === 'estadisticas') {
+              this.$nextTick(() => { this.renderizarGraficos(); });
+            }
+          }
+        } catch (e) { console.error(e); }
+      },
+      cargarEvaluacionBD(rev) {
+        this.entidad = rev.entidad;
+        this.periodo = rev.periodo;
+        this.tipo = rev.tipo;
+        this.cargarDeBD();
+        this.abrirDashboard();
+      },
+      async borrarEvaluacion(id) {
+        if (!confirm("¿Estás seguro de eliminar esta evaluación?")) return;
+        try {
+          const res = await fetch(`/api/borrar?id=${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + this.token }
+          });
+          if (res.ok) {
+            this.cargarListaRevisiones();
+          }
+        } catch (e) { console.error(e); }
+      },
+      iniciarRevision() {
+        this.entidad = this.nuevaEntidad;
+        this.periodo = this.nuevoPeriodo;
+        this.tipo = this.nuevoTipo;
+
+        $('#modalNuevaRevision').modal('hide');
+        this.cargarDeBD();
+        this.nuevaEntidad = '';
+        this.nuevoPeriodo = '';
+        this.abrirDashboard();
+      },
+      async exportarExcel() {
+        if (!this.entidad || !this.periodo) return alert("Selecciona una entidad y período");
+        try {
+          const res = await fetch(`/api/exportar?entidad=${encodeURIComponent(this.entidad)}&periodo=${encodeURIComponent(this.periodo)}&tipo=${encodeURIComponent(this.tipo)}`, {
+            headers: { 'Authorization': 'Bearer ' + this.token }
+          });
+          if (!res.ok) return alert("Error al exportar a Excel");
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `CIMTRA_${this.entidad.replace(/ /g, '_')}_${this.periodo.replace(/ /g, '_')}.xlsx`;
+          a.click();
+          a.remove();
+        } catch (e) { alert("Error exportando Excel"); }
+      },
+      async exportarWord() {
+        if (!this.entidad || !this.periodo) return alert("Selecciona una entidad y período");
+        try {
+          const res = await fetch(`/api/exportar_word?entidad=${encodeURIComponent(this.entidad)}&periodo=${encodeURIComponent(this.periodo)}&tipo=${encodeURIComponent(this.tipo)}`, {
+            headers: { 'Authorization': 'Bearer ' + this.token }
+          });
+          if (!res.ok) return alert("Error al exportar a Word");
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `CIMTRA_${this.entidad.replace(/ /g, '_')}_${this.periodo.replace(/ /g, '_')}.docx`;
+          a.click();
+          a.remove();
+        } catch (e) { alert("Error exportando Word"); }
+      },
+      abrirModalObservacion(criterio, aspecto, bloque) {
+        this.criterioEnEdicion = criterio;
+        this.aspectoEnEdicion = aspecto;
+        this.bloqueEnEdicion = bloque;
+        this.textoObservacionTemporal = criterio.comentario || '';
+        $('#modalObservacion').modal('show');
+      },
+      guardarObservacionModal() {
+        if (this.criterioEnEdicion) {
+          this.criterioEnEdicion.comentario = this.textoObservacionTemporal.trim();
+          this.guardarEnBD();
+        }
+        $('#modalObservacion').modal('hide');
+      },
+      limpiarObservacionModal() {
+        this.textoObservacionTemporal = '';
+        if (this.criterioEnEdicion) {
+          this.criterioEnEdicion.comentario = '';
+          this.guardarEnBD();
+        }
+      },
+      async exportarObservacionesWord() {
+        if (!this.entidad || !this.periodo) return alert("Selecciona una entidad y período");
+        try {
+          const res = await fetch(`/api/exportar_observaciones_word?entidad=${encodeURIComponent(this.entidad)}&periodo=${encodeURIComponent(this.periodo)}&tipo=${encodeURIComponent(this.tipo)}`, {
+            headers: { 'Authorization': 'Bearer ' + this.token }
+          });
+          if (!res.ok) return alert("Error al exportar el informe de observaciones");
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `Observaciones_CIMTRA_${this.entidad.replace(/ /g, '_')}_${this.periodo.replace(/ /g, '_')}.docx`;
+          a.click();
+          a.remove();
+        } catch (e) { 
+          console.error(e);
+          alert("Error exportando el archivo de observaciones en Word"); 
+        }
+      },
+      calcularPuntaje(aspecto) {
+        let total = 0;
+        if (aspecto && aspecto.criterios) {
+          aspecto.criterios.forEach(c => {
+            if (c.cumple === 'si') {
+              const pts = parseInt(c.puntos, 10);
+              if (!isNaN(pts)) total += pts;
+            }
+          });
+        }
+        return total;
+      },
+      calcularPuntajeMaximo(aspecto) {
+        let total = 0;
+        if (aspecto && aspecto.criterios) {
+          aspecto.criterios.forEach(c => {
+            const pts = parseInt(c.puntos, 10);
+            if (!isNaN(pts)) total += pts;
+          });
+        }
+        return total;
+      },
+      calcularPorcentaje(aspecto) {
+        let maximo = this.calcularPuntajeMaximo(aspecto);
+        if (maximo === 0) return 0;
+        return ((this.calcularPuntaje(aspecto) / maximo) * 100).toFixed(2);
+      },
+      calcularPuntajeGlobal() {
+        let total = 0;
+        this.campos.forEach(c => {
+          if (c.bloques) {
+            c.bloques.forEach(b => {
+              if (b.aspectos) {
+                b.aspectos.forEach(a => { total += this.calcularPuntaje(a); });
+              }
+            });
+          }
+        });
+        return total;
+      },
+      calcularPuntajeMaximoGlobal() {
+        let total = 0;
+        this.campos.forEach(c => {
+          if (c.bloques) {
+            c.bloques.forEach(b => {
+              if (b.aspectos) {
+                b.aspectos.forEach(a => { total += this.calcularPuntajeMaximo(a); });
+              }
+            });
+          }
+        });
+        return total;
+      },
+      calcularPorcentajeGlobal() {
+        let maximo = this.calcularPuntajeMaximoGlobal();
+        if (maximo === 0) return 0;
+        return ((this.calcularPuntajeGlobal() / maximo) * 100).toFixed(2);
+      },
+      getStatsBloque(bloque) {
+        let si = 0, no = 0, na = 0, observaciones = 0;
+        let puntos_obtenidos = 0, puntos_maximos = 0;
+        if (bloque && bloque.aspectos) {
+          bloque.aspectos.forEach(a => {
+            if (a.criterios) {
+              a.criterios.forEach(c => {
+                const pts = parseInt(c.puntos, 10) || 1;
+                puntos_maximos += pts;
+                if (c.cumple === 'si') {
+                  si++;
+                  puntos_obtenidos += pts;
+                } else if (c.cumple === 'no') {
+                  no++;
+                } else {
+                  na++;
+                }
+                if (c.comentario && c.comentario.trim().length > 0) {
+                  observaciones++;
+                }
+              });
+            }
+          });
+        }
+        const total_criterios = si + no + na;
+        const porcentaje = puntos_maximos > 0 ? Number(((puntos_obtenidos / puntos_maximos) * 100).toFixed(1)) : 0;
+        return { si, no, na, total_criterios, observaciones, puntos_obtenidos, puntos_maximos, porcentaje };
+      },
+      getStatsActiva() {
+        let criterios_si = 0, criterios_no = 0, criterios_na = 0, total_observaciones = 0;
+        let deficiencias = { no_existe: 0, no_actualizada: 0, ilegible: 0, enlace_roto: 0 };
+        this.campos.forEach(c => {
+          (c.bloques || []).forEach(b => {
+            (b.aspectos || []).forEach(a => {
+              (a.criterios || []).forEach(cr => {
+                if (cr.cumple === 'si') criterios_si++;
+                else if (cr.cumple === 'no') criterios_no++;
+                else criterios_na++;
+
+                if (cr.comentario && cr.comentario.trim().length > 0) total_observaciones++;
+
+                const errs = cr.errores || {};
+                if (errs.no_existe) deficiencias.no_existe++;
+                if (errs.no_actualizada) deficiencias.no_actualizada++;
+                if (errs.ilegible) deficiencias.ilegible++;
+                if (errs.enlace_roto) deficiencias.enlace_roto++;
+              });
+            });
+          });
+        });
+        return {
+          criterios_si, criterios_no, criterios_na,
+          total_criterios: criterios_si + criterios_no + criterios_na,
+          total_observaciones,
+          deficiencias
+        };
+      },
+      getPromedioCumplimientoGeneral() {
+        if (!this.listaRevisiones || this.listaRevisiones.length === 0) return 0;
+        let total = 0, count = 0;
+        this.listaRevisiones.forEach(r => {
+          if (r.stats && typeof r.stats.porcentaje === 'number') {
+            total += r.stats.porcentaje;
+            count++;
+          }
+        });
+        return count > 0 ? (total / count).toFixed(1) : 0;
+      },
+      getMejorEvaluacion() {
+        if (!this.listaRevisiones || this.listaRevisiones.length === 0) return { entidad: '', porcentaje: 0 };
+        let best = { entidad: '', porcentaje: 0 };
+        this.listaRevisiones.forEach(r => {
+          if (r.stats && r.stats.porcentaje >= best.porcentaje) {
+            best = { entidad: r.entidad, porcentaje: r.stats.porcentaje };
+          }
+        });
+        return best;
+      },
+      getTotalObservacionesGeneral() {
+        if (!this.listaRevisiones) return 0;
+        return this.listaRevisiones.reduce((acc, r) => acc + ((r.stats && r.stats.total_observaciones) || 0), 0);
+      },
+      getRevisionesFiltradas() {
+        if (!this.listaRevisiones) return [];
+        if (this.filtroRevisionCampo === 'todas') return this.listaRevisiones;
+        return this.listaRevisiones.filter(r => String(r.id) === String(this.filtroRevisionCampo));
+      },
+      renderizarGraficos() {
+        if (typeof Chart === 'undefined') return;
+        if (this.vistaActual !== 'estadisticas') return;
+
+        if (this.tabEstadistica === 'activa' && this.entidad && this.periodo) {
+          // 1. Chart Campos
+          const ctxCampos = document.getElementById('chartCampos');
+          if (ctxCampos) {
+            if (this.chartCamposInstance) this.chartCamposInstance.destroy();
+            const labels = this.campos.map(c => c.nombre.length > 25 ? c.nombre.substring(0, 22) + '...' : c.nombre);
+            const dataPct = this.campos.map(c => {
+              let pts = 0, max = 0;
+              (c.bloques || []).forEach(b => {
+                (b.aspectos || []).forEach(a => {
+                  (a.criterios || []).forEach(cr => {
+                    const p = parseInt(cr.puntos, 10) || 1;
+                    max += p;
+                    if (cr.cumple === 'si') pts += p;
+                  });
+                });
+              });
+              return max > 0 ? Number(((pts / max) * 100).toFixed(1)) : 0;
+            });
+
+            this.chartCamposInstance = new Chart(ctxCampos, {
+              type: 'bar',
+              data: {
+                labels: labels,
+                datasets: [{
+                  label: '% Cumplimiento',
+                  data: dataPct,
+                  backgroundColor: 'rgba(0, 31, 63, 0.85)',
+                  borderColor: 'rgba(0, 31, 63, 1)',
+                  borderWidth: 1,
+                  borderRadius: 4
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                  y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } }
+                }
+              }
+            });
+          }
+
+          // 2. Chart Respuestas
+          const ctxRespuestas = document.getElementById('chartRespuestas');
+          if (ctxRespuestas) {
+            if (this.chartRespuestasInstance) this.chartRespuestasInstance.destroy();
+            const stats = this.getStatsActiva();
+            this.chartRespuestasInstance = new Chart(ctxRespuestas, {
+              type: 'doughnut',
+              data: {
+                labels: ['Cumple (Sí)', 'No Cumple (No)', 'No Aplica (N/A)'],
+                datasets: [{
+                  data: [stats.criterios_si, stats.criterios_no, stats.criterios_na],
+                  backgroundColor: ['#28a745', '#dc3545', '#6c757d']
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { position: 'bottom' }
+                }
+              }
+            });
+          }
+        }
+
+        if (this.tabEstadistica === 'general' && this.listaRevisiones.length > 0) {
+          const ctxGeneral = document.getElementById('chartGeneral');
+          if (ctxGeneral) {
+            if (this.chartGeneralInstance) this.chartGeneralInstance.destroy();
+            const revs = [...this.listaRevisiones].reverse();
+            const labels = revs.map(r => `${r.entidad} (${r.periodo})`);
+            const dataPcts = revs.map(r => r.stats ? r.stats.porcentaje : 0);
+            const bgColors = dataPcts.map(p => p >= 70 ? 'rgba(40, 167, 69, 0.85)' : (p >= 40 ? 'rgba(255, 193, 7, 0.85)' : 'rgba(220, 53, 69, 0.85)'));
+
+            this.chartGeneralInstance = new Chart(ctxGeneral, {
+              type: 'bar',
+              data: {
+                labels: labels,
+                datasets: [{
+                  label: '% Cumplimiento',
+                  data: dataPcts,
+                  backgroundColor: bgColors,
+                  borderRadius: 4
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                  y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } }
+                }
+              }
+            });
+          }
+        }
+      }
+    }
+  }).mount('#app');
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+asgiref==3.12.1
+Django>=4.2.18
+sqlparse==0.5.5
+tzdata==2026.3
+psycopg[binary]
+openpyxl
+python-docx
+pyjwt
+bcrypt
+gunicorn>=21.2.0
+whitenoise>=6.6.0
