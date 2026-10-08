@@ -24,6 +24,19 @@ if allowed_hosts_env == '*':
     ALLOWED_HOSTS = ['*']
 else:
     ALLOWED_HOSTS = [h.strip() for h in allowed_hosts_env.split(',') if h.strip()]
+    for default_host in ('.railway.app', '.up.railway.app', 'localhost', '127.0.0.1'):
+        if default_host not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(default_host)
+
+# CSRF Trusted Origins (necesario en Django 4+ para HTTPS en Railway y proxies)
+csrf_trusted_env = os.getenv('CSRF_TRUSTED_ORIGINS', '')
+if csrf_trusted_env:
+    CSRF_TRUSTED_ORIGINS = [orig.strip() for orig in csrf_trusted_env.split(',') if orig.strip()]
+else:
+    CSRF_TRUSTED_ORIGINS = ['https://*.railway.app', 'https://*.up.railway.app', 'http://localhost', 'http://127.0.0.1']
+
+# Cabecera para proxies inversos que terminan SSL (Railway, Cloudflare, Nginx)
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Evita que Django redirija /token → /token/ con un 301 HTML
 APPEND_SLASH = False
@@ -73,6 +86,8 @@ TEMPLATES = [
 WSGI_APPLICATION = 'app.wsgi.application'
 
 # Database Configuration
+DATABASE_URL = os.getenv("DATABASE_URL")
+
 def is_db_host_resolvable(host):
     if host in ("localhost", "127.0.0.1"):
         return True
@@ -82,10 +97,23 @@ def is_db_host_resolvable(host):
     except Exception:
         return False
 
-DB_HOST = os.getenv("DB_HOST", "db")
+DB_HOST = os.getenv("DB_HOST", os.getenv("PGHOST", "db"))
 USE_SQLITE = os.getenv("USE_SQLITE", "0") == "1"
 
-if USE_SQLITE or not is_db_host_resolvable(DB_HOST):
+if DATABASE_URL:
+    import urllib.parse
+    url = urllib.parse.urlparse(DATABASE_URL)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': url.path[1:],
+            'USER': url.username,
+            'PASSWORD': url.password,
+            'HOST': url.hostname,
+            'PORT': str(url.port or 5432),
+        }
+    }
+elif USE_SQLITE or not is_db_host_resolvable(DB_HOST):
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -96,11 +124,11 @@ else:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv("DB_NAME", "dj_ctl_comb"),
-            "USER": os.getenv("DB_USER", "postgres"),
-            "PASSWORD": os.getenv("DB_PASSWORD", "alejudg1"),
+            "NAME": os.getenv("DB_NAME", os.getenv("PGDATABASE", "dj_ctl_comb")),
+            "USER": os.getenv("DB_USER", os.getenv("PGUSER", "postgres")),
+            "PASSWORD": os.getenv("DB_PASSWORD", os.getenv("PGPASSWORD", "alejudg1")),
             "HOST": DB_HOST,
-            "PORT": os.getenv("DB_PORT", "5432"),
+            "PORT": os.getenv("DB_PORT", os.getenv("PGPORT", "5432")),
         }
     }
 

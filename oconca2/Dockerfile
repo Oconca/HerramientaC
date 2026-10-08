@@ -15,3 +15,9 @@ RUN pip install -r requirements.txt
 
 # Copiar el proyecto
 COPY . .
+
+# Exponer puerto por defecto
+EXPOSE 8000
+
+# Comando de arranque para Railway / Docker
+CMD ["sh", "-c", "python manage.py collectstatic --noinput && python manage.py migrate && gunicorn app.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 3 --timeout 120"]
