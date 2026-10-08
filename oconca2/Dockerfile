@@ -10,11 +10,11 @@ ENV PYTHONUNBUFFERED 1
 WORKDIR /code
 
 # Instalar dependencias
-COPY ./requirements.txt .
+COPY oconca2/requirements.txt .
 RUN pip install -r requirements.txt
 
 # Copiar el proyecto
-COPY . .
+COPY oconca2/ .
 
 # Exponer puerto por defecto
 EXPOSE 8000
