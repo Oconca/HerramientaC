@@ -1,0 +1,36 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - .:/code 
+    environment:
+      - DB_HOST=db
+      - DB_NAME=dj_ctl_comb
+      - DB_USER=postgres
+      - DB_PASSWORD=alejudg1
+      - DB_PORT=5432
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always     
+      
+  db:
+    image: postgres:15
+    user: root
+    volumes:
+      - ../data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=dj_ctl_comb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=alejudg1
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d dj_ctl_comb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
